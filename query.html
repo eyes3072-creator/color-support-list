@@ -133,9 +133,9 @@ tbody tr:hover .ract{opacity:1}
     <span class="badge">{{ devices.length }} 款設備</span>
     <div class="hactions">
       <button class="btn btn-s" @click="openExport">匯出清單</button>
-      <button class="btn btn-s" v-if="hasChanges" @click="askReset">重設為預設</button>
+      <template v-if="isLocal"><button class="btn btn-s" v-if="hasChanges" @click="askReset">重設為預設</button>
       <button class="btn btn-warn" v-if="hasChanges" @click="openPublish">⬆ 發布更新</button>
-      <button class="btn btn-p" @click="openAdd">＋ 新增設備</button>
+      <button class="btn btn-p" @click="openAdd">＋ 新增設備</button></template>
     </div>
   </header>
 
@@ -199,7 +199,7 @@ tbody tr:hover .ract{opacity:1}
 
       <table v-else>
         <thead><tr>
-          <th>機種</th><th>系列</th><th>校色類型</th><th>色域</th><th>面板</th><th>UC 狀態</th><th>作業系統</th><th>支援 Calibrator</th><th></th>
+          <th>機種</th><th>系列</th><th>校色類型</th><th>色域</th><th>面板</th><th>UC 狀態</th><th>作業系統</th><th>支援 Calibrator</th><th v-if="isLocal"></th>
         </tr></thead>
         <tbody>
           <tr v-for="d in result" :key="d.id" :class="{new:d._new}">
@@ -216,7 +216,7 @@ tbody tr:hover .ract{opacity:1}
             <td><span class="ucd"><span class="dot" :class="dotC(d.ucStatus)"></span>{{ucL(d.ucStatus)}}</span></td>
             <td><div class="osp"><span v-for="o in d.supportedOS" :key="o" class="op">{{osL(o)}}</span></div></td>
             <td><div class="cls"><span v-for="id in d.supportedCalibratorIds" :key="id" class="cp" :class="cpC(id)">{{CM[id]?.name}}</span></div></td>
-            <td><div class="ract">
+            <td v-if="isLocal"><div class="ract">
               <button class="btn btn-s btn-sm" @click="openEdit(d)">編輯</button>
               <button class="btn btn-d btn-sm" @click="askDel(d)">刪除</button>
             </div></td>
@@ -490,6 +490,7 @@ const DEFAULT_DEVICES = [
 const {createApp,reactive,ref,computed,onMounted} = Vue;
 
 const SMKEY = 'sq-devices-v1';
+const IS_LOCAL = location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1';
 const SRS = {monitor:['SW','PD','PV'],projector:['W','HT'],'digital-signage':['SL','SH']};
 const CSLL = {sw:'SW 全套',pd:'PD 全套',pv:'PV 全套',pj:'Projector',ds:'Digital Signage'};
 const UCL = {'always-on':'Always ON','on-off':'ON / OFF','on-bri-off':'ON / Bri / OFF','not-supported':'不支援','no-uc':'—'};
@@ -631,7 +632,7 @@ createApp({
     function calSetL(k){return CSLL[k]??k;}
 
     return{
-      devices,hasChanges,f,seriesList,result,calOpts,osOk,brandOk,
+      isLocal:IS_LOCAL,devices,hasChanges,f,seriesList,result,calOpts,osOk,brandOk,
       setDt,setSr,setOs,setBr,setCal,resetF,
       showForm,editId,idAuto,fm,fmOk,fmSeries,syncId,openAdd,openEdit,save,
       showDel,delTarget,askDel,doDel,
