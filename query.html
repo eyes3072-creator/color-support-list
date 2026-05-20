@@ -31,6 +31,7 @@ header h1{font-size:15px;font-weight:600}
 .btn-p{background:#2563eb;border-color:#2563eb;color:#fff}.btn-p:hover{background:#1d4ed8}
 .btn-s{background:#fff;color:#374151}.btn-s:hover{background:#f3f4f6}
 .btn-d{background:#fff;color:#dc2626;border-color:#fca5a5}.btn-d:hover{background:#fef2f2}
+.btn-warn{background:#fff7ed;color:#c2410c;border-color:#fed7aa;font-weight:600}.btn-warn:hover{background:#ffedd5}
 .btn-g{background:none;border:none;cursor:pointer;padding:4px 8px;border-radius:4px;transition:background .1s}.btn-g:hover{background:#f3f4f6}
 .btn-sm{padding:3px 8px;font-size:11px}
 .layout{display:flex;flex:1;overflow:hidden}
@@ -133,6 +134,7 @@ tbody tr:hover .ract{opacity:1}
     <div class="hactions">
       <button class="btn btn-s" @click="openExport">匯出清單</button>
       <button class="btn btn-s" v-if="hasChanges" @click="askReset">重設為預設</button>
+      <button class="btn btn-warn" v-if="hasChanges" @click="openPublish">⬆ 發布更新</button>
       <button class="btn btn-p" @click="openAdd">＋ 新增設備</button>
     </div>
   </header>
@@ -249,8 +251,10 @@ tbody tr:hover .ract{opacity:1}
           </div>
           <div class="fgrp">
             <label class="flb">系列 <span class="req">*</span></label>
-            <input class="fi" v-model="fm.series" list="sl" placeholder="e.g. SW">
-            <datalist id="sl"><option v-for="s in fmSeries" :value="s"/></datalist>
+            <select class="fi" v-model="fm.series">
+              <option value="">— 請選擇 —</option>
+              <option v-for="s in fmSeries" :key="s" :value="s">{{s}}</option>
+            </select>
           </div>
           <div class="fgrp">
             <label class="flb">校色類型 <span class="req">*</span></label>
@@ -315,6 +319,9 @@ tbody tr:hover .ract{opacity:1}
         </div>
       </div>
       <div class="mf">
+        <span v-if="!fmOk" style="font-size:11px;color:#ef4444;margin-right:auto;align-self:center">
+          請填寫：{{[!fm.series&&'系列',!fm.gamut.trim()&&'色域',!fm.panel.trim()&&'面板'].filter(Boolean).join('、')}}
+        </span>
         <button class="btn btn-s" @click="showForm=false">取消</button>
         <button class="btn btn-p" @click="save" :disabled="!fmOk">{{editId?'儲存變更':'新增設備'}}</button>
       </div>
@@ -341,6 +348,34 @@ tbody tr:hover .ract{opacity:1}
       <div class="mf">
         <button class="btn btn-s" @click="showReset=false">取消</button>
         <button class="btn btn-d" @click="doReset">確認重設</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 發布更新 -->
+  <div class="ov" v-if="showPublish" @click.self="showPublish=false">
+    <div class="modal cm">
+      <div class="mh"><h2>⬆ 發布更新到 GitHub Pages</h2><button class="btn-g" @click="showPublish=false">✕</button></div>
+      <div class="cmb" style="display:flex;flex-direction:column;gap:14px">
+        <div style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:8px;" :style="pubCopied?'background:#dcfce7':'background:#fef9c3'">
+          <span style="font-size:20px">{{pubCopied?'✅':'⏳'}}</span>
+          <div>
+            <div style="font-size:13px;font-weight:600;color:#111827">{{pubCopied?'程式碼已複製到剪貼簿':'正在複製…'}}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px">共 {{devices.length}} 款設備</div>
+          </div>
+        </div>
+        <div style="background:#f8f9fc;border-radius:8px;padding:14px">
+          <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px">在 Finder 雙擊以下檔案即完成發布：</div>
+          <div style="font-family:'SF Mono',monospace;font-size:12px;color:#1e40af;background:#eff6ff;border-radius:6px;padding:8px 12px">
+            support-list / <strong>publish.command</strong>
+          </div>
+          <div style="font-size:11px;color:#6b7280;margin-top:8px">腳本會自動讀取剪貼簿、更新檔案並推送到 GitHub</div>
+        </div>
+        <div style="font-size:11px;color:#9ca3af">約 1 分鐘後 https://eyes3072-creator.github.io/color-support-list/query.html 自動更新</div>
+      </div>
+      <div class="mf">
+        <button class="btn btn-s btn-sm" @click="copyPublish" style="margin-right:auto">{{pubCopied?'✓ 重新複製':'手動複製程式碼'}}</button>
+        <button class="btn btn-s" @click="showPublish=false">關閉</button>
       </div>
     </div>
   </div>
@@ -547,6 +582,25 @@ createApp({
     function askReset(){showReset.value=true;}
     function doReset(){devices.value=DEFAULT_DEVICES.map(d=>({...d}));localStorage.removeItem(SMKEY);hasChanges.value=false;showReset.value=false;}
 
+    // publish
+    const showPublish=ref(false),pubCopied=ref(false);
+    const publishCode=computed(()=>{
+      const lines=devices.value.map(d=>{
+        const o={...d};delete o._new;
+        return '  '+JSON.stringify(o);
+      });
+      return 'const DEFAULT_DEVICES = [\n'+lines.join(',\n')+'\n];';
+    });
+    function openPublish(){
+      showPublish.value=true;pubCopied.value=false;
+      navigator.clipboard.writeText(publishCode.value).then(()=>{pubCopied.value=true;});
+    }
+    function copyPublish(){
+      navigator.clipboard.writeText(publishCode.value).then(()=>{
+        pubCopied.value=true;setTimeout(()=>pubCopied.value=false,2000);
+      });
+    }
+
     // export
     const showExp=ref(false);
     function openExport(){showExp.value=true;}
@@ -587,6 +641,7 @@ createApp({
       showForm,editId,idAuto,fm,fmOk,fmSeries,syncId,openAdd,openEdit,save,
       showDel,delTarget,askDel,doDel,
       showReset,askReset,doReset,
+      showPublish,publishCode,pubCopied,openPublish,copyPublish,
       showExp,openExport,doExport,
       CM,CAL,CALS,
       dtypes:[{v:'monitor',l:'Monitor'},{v:'projector',l:'Projector'},{v:'digital-signage',l:'Signage'}],
