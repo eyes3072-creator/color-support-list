@@ -353,33 +353,28 @@ tbody tr:hover .ract{opacity:1}
   </div>
 
   <!-- 發布更新 -->
-  <div class="ov" v-if="showPublish" @click.self="showPublish=false">
+  <div class="ov" v-if="showPublish" @click.self="pubStatus!=='publishing'&&(showPublish=false)">
     <div class="modal cm">
-      <div class="mh"><h2>⬆ 發布更新到 GitHub Pages</h2><button class="btn-g" @click="showPublish=false">✕</button></div>
-      <div class="cmb" style="display:flex;flex-direction:column;gap:14px">
-        <div style="display:flex;align-items:center;gap:10px;padding:12px;border-radius:8px;" :style="pubCopied?'background:#dcfce7':'background:#fef9c3'">
-          <span style="font-size:20px">{{pubCopied?'✅':'⏳'}}</span>
-          <div>
-            <div style="font-size:13px;font-weight:600;color:#111827">{{pubCopied?'程式碼已複製到剪貼簿':'正在複製…'}}</div>
-            <div style="font-size:11px;color:#6b7280;margin-top:2px">共 {{devices.length}} 款設備</div>
-          </div>
-        </div>
-        <div style="background:#f8f9fc;border-radius:8px;padding:14px">
-          <div style="font-size:12px;font-weight:600;color:#374151;margin-bottom:8px">在 Finder 雙擊以下檔案即完成發布：</div>
-          <div style="font-family:'SF Mono',monospace;font-size:12px;color:#1e40af;background:#eff6ff;border-radius:6px;padding:8px 12px">
-            support-list / <strong>publish.command</strong>
-          </div>
-          <div style="font-size:11px;color:#6b7280;margin-top:8px">腳本會自動讀取剪貼簿、更新檔案並推送到 GitHub</div>
-        </div>
-        <details style="margin-top:4px">
-          <summary style="font-size:11px;color:#6b7280;cursor:pointer">▶ 複製失敗？手動複製程式碼</summary>
-          <textarea style="width:100%;height:140px;margin-top:8px;font-family:'SF Mono',monospace;font-size:10px;border:1px solid #e5e7eb;border-radius:6px;padding:8px;resize:vertical" readonly :value="publishCode"></textarea>
-        </details>
-        <div style="font-size:11px;color:#9ca3af">約 1 分鐘後 https://eyes3072-creator.github.io/color-support-list/query.html 自動更新</div>
+      <div class="mh"><h2>⬆ 發布更新到 GitHub Pages</h2><button class="btn-g" @click="showPublish=false" :disabled="pubStatus==='publishing'">✕</button></div>
+      <div class="cmb" style="display:flex;flex-direction:column;gap:12px;align-items:center;padding:28px 0;min-height:120px;justify-content:center">
+        <template v-if="pubStatus==='publishing'">
+          <div style="font-size:36px">⏳</div>
+          <div style="font-size:15px;font-weight:600;color:#374151">發布中…</div>
+          <div style="font-size:12px;color:#6b7280">正在更新檔案並推送到 GitHub，請稍候</div>
+        </template>
+        <template v-else-if="pubStatus==='done'">
+          <div style="font-size:36px">✅</div>
+          <div style="font-size:15px;font-weight:600;color:#16a34a">{{pubMsg}}</div>
+          <div style="font-size:12px;color:#6b7280">約 1 分鐘後網頁自動更新</div>
+        </template>
+        <template v-else-if="pubStatus==='error'">
+          <div style="font-size:36px">❌</div>
+          <div style="font-size:14px;font-weight:600;color:#dc2626">發布失敗</div>
+          <div style="font-size:12px;color:#6b7280;text-align:center;max-width:320px;line-height:1.6">{{pubMsg}}</div>
+        </template>
       </div>
       <div class="mf">
-        <button class="btn btn-s btn-sm" @click="copyPublish" style="margin-right:auto">{{pubCopied?'✓ 重新複製':'手動複製程式碼'}}</button>
-        <button class="btn btn-s" @click="showPublish=false">關閉</button>
+        <button class="btn btn-s" @click="showPublish=false" :disabled="pubStatus==='publishing'">關閉</button>
       </div>
     </div>
   </div>
@@ -581,30 +576,25 @@ createApp({
     function doReset(){devices.value=DEFAULT_DEVICES.map(d=>({...d}));localStorage.removeItem(SMKEY);hasChanges.value=false;showReset.value=false;}
 
     // publish
-    const showPublish=ref(false),pubCopied=ref(false);
-    const publishCode=computed(()=>{
-      const lines=devices.value.map(d=>{
-        const o={...d};delete o._new;
-        return '  '+JSON.stringify(o);
-      });
-      return 'const DEFAULT_DEVICES = [\n'+lines.join(',\n')+'\n];';
-    });
-    function openPublish(){showPublish.value=true;pubCopied.value=false;}
-    function copyPublish(){
-      const code=publishCode.value;
-      if(navigator.clipboard?.writeText){
-        navigator.clipboard.writeText(code)
-          .then(()=>{pubCopied.value=true;setTimeout(()=>pubCopied.value=false,3000);})
-          .catch(()=>_execCopy(code));
-      }else{_execCopy(code);}
-    }
-    function _execCopy(text){
-      const ta=document.createElement('textarea');
-      ta.value=text;ta.style.cssText='position:fixed;opacity:0;top:0;left:0';
-      document.body.appendChild(ta);ta.focus();ta.select();
-      try{document.execCommand('copy');pubCopied.value=true;setTimeout(()=>pubCopied.value=false,3000);}
-      catch(e){alert('複製失敗，請手動複製程式碼');}
-      document.body.removeChild(ta);
+    const showPublish=ref(false),pubStatus=ref('idle'),pubMsg=ref('');
+    async function openPublish(){
+      showPublish.value=true;
+      pubStatus.value='publishing';
+      pubMsg.value='';
+      const devs=devices.value.map(d=>{const o={...d};delete o._new;return o;});
+      try{
+        const res=await fetch('http://localhost:9876',{
+          method:'POST',
+          headers:{'Content-Type':'text/plain'},
+          body:JSON.stringify({devices:devs})
+        });
+        const data=await res.json();
+        if(data.success){pubStatus.value='done';pubMsg.value=`已發布 ${data.count} 款設備`;}
+        else{pubStatus.value='error';pubMsg.value=data.error||'未知錯誤';}
+      }catch(e){
+        pubStatus.value='error';
+        pubMsg.value='無法連線到發布服務（請先開啟一個 Terminal 視窗）';
+      }
     }
 
     // export
@@ -647,7 +637,7 @@ createApp({
       showForm,editId,idAuto,fm,fmOk,fmSeries,syncId,openAdd,openEdit,save,
       showDel,delTarget,askDel,doDel,
       showReset,askReset,doReset,
-      showPublish,publishCode,pubCopied,openPublish,copyPublish,
+      showPublish,pubStatus,pubMsg,openPublish,
       showExp,openExport,doExport,
       CM,CAL,CALS,
       dtypes:[{v:'monitor',l:'Monitor'},{v:'projector',l:'Projector'},{v:'digital-signage',l:'Signage'}],
