@@ -371,6 +371,10 @@ tbody tr:hover .ract{opacity:1}
           </div>
           <div style="font-size:11px;color:#6b7280;margin-top:8px">腳本會自動讀取剪貼簿、更新檔案並推送到 GitHub</div>
         </div>
+        <details style="margin-top:4px">
+          <summary style="font-size:11px;color:#6b7280;cursor:pointer">▶ 複製失敗？手動複製程式碼</summary>
+          <textarea style="width:100%;height:140px;margin-top:8px;font-family:'SF Mono',monospace;font-size:10px;border:1px solid #e5e7eb;border-radius:6px;padding:8px;resize:vertical" readonly :value="publishCode"></textarea>
+        </details>
         <div style="font-size:11px;color:#9ca3af">約 1 分鐘後 https://eyes3072-creator.github.io/color-support-list/query.html 自動更新</div>
       </div>
       <div class="mf">
@@ -585,14 +589,22 @@ createApp({
       });
       return 'const DEFAULT_DEVICES = [\n'+lines.join(',\n')+'\n];';
     });
-    function openPublish(){
-      showPublish.value=true;pubCopied.value=false;
-      navigator.clipboard.writeText(publishCode.value).then(()=>{pubCopied.value=true;});
-    }
+    function openPublish(){showPublish.value=true;pubCopied.value=false;}
     function copyPublish(){
-      navigator.clipboard.writeText(publishCode.value).then(()=>{
-        pubCopied.value=true;setTimeout(()=>pubCopied.value=false,2000);
-      });
+      const code=publishCode.value;
+      if(navigator.clipboard?.writeText){
+        navigator.clipboard.writeText(code)
+          .then(()=>{pubCopied.value=true;setTimeout(()=>pubCopied.value=false,3000);})
+          .catch(()=>_execCopy(code));
+      }else{_execCopy(code);}
+    }
+    function _execCopy(text){
+      const ta=document.createElement('textarea');
+      ta.value=text;ta.style.cssText='position:fixed;opacity:0;top:0;left:0';
+      document.body.appendChild(ta);ta.focus();ta.select();
+      try{document.execCommand('copy');pubCopied.value=true;setTimeout(()=>pubCopied.value=false,3000);}
+      catch(e){alert('複製失敗，請手動複製程式碼');}
+      document.body.removeChild(ta);
     }
 
     // export

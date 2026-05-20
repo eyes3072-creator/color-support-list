@@ -8,20 +8,34 @@ echo "================================================"
 echo ""
 
 python3 - << 'PYEOF'
-import subprocess, re, sys
+import subprocess, re, sys, json
 
-code = subprocess.run(['pbpaste'], capture_output=True, text=True).stdout
+# ── 讀取剪貼簿 ──
+code = subprocess.run(['pbpaste'], capture_output=True, text=True).stdout.strip()
 
 if 'DEFAULT_DEVICES' not in code:
     print('❌ 剪貼簿內容不是設備資料')
-    print('   請先在瀏覽器點擊「⬆ 發布更新」，等按鈕變成「✓ 已複製！」再執行此腳本')
+    print('   請先在瀏覽器點擊「⬆ 發布更新」→「複製程式碼」')
+    print(f'   （目前剪貼簿：{repr(code[:80])}）')
     sys.exit(1)
 
+# ── 計算新資料的設備數量 ──
+new_count = code.count('"id"')
+if new_count == 0:
+    print('❌ 讀到的程式碼格式不正確（找不到設備 ID）')
+    sys.exit(1)
+
+# ── 讀取現有 query.html ──
 with open('query.html', 'r') as f:
     content = f.read()
 
+# ── 計算舊資料的設備數量 ──
+m_old = re.search(r'const DEFAULT_DEVICES = \[([\s\S]*?)\];', content)
+old_count = m_old.group(1).count('"id"') if m_old else 0
+
+# ── 替換（使用 lambda 避免 backslash 解析問題）──
 pattern = r'const DEFAULT_DEVICES = \[[\s\S]*?\];'
-new_content = re.sub(pattern, code.strip(), content, count=1)
+new_content = re.sub(pattern, lambda _: code, content, count=1)
 
 if new_content == content:
     print('❌ 找不到 DEFAULT_DEVICES 區塊，替換失敗')
@@ -30,9 +44,7 @@ if new_content == content:
 with open('query.html', 'w') as f:
     f.write(new_content)
 
-import json
-devices = json.loads('[' + re.search(r'DEFAULT_DEVICES = \[\n([\s\S]*?)\n\];', new_content).group(1).replace('\n  ', '\n') + ']')
-print(f'✅ query.html 已更新（共 {len(devices)} 款設備）')
+print(f'✅ query.html 已更新：{old_count} → {new_count} 款設備')
 PYEOF
 
 if [ $? -ne 0 ]; then
