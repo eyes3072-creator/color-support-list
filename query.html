@@ -214,7 +214,7 @@ tbody tr:hover .ract{opacity:1}
             <td>{{d.gamut}}</td>
             <td>{{d.panel}}</td>
             <td><span class="ucd"><span class="dot" :class="dotC(d.ucStatus)"></span>{{ucL(d.ucStatus)}}</span></td>
-            <td><div class="osp"><span v-for="o in d.supportedOS" :key="o" class="op">{{osL(o)}}</span></div></td>
+            <td><div class="osp"><span v-for="o in osDisp(d.supportedOS)" :key="o" class="op">{{o}}</span></div></td>
             <td><div class="cls"><span v-for="id in d.supportedCalibratorIds" :key="id" class="cp" :class="cpC(id)">{{CM[id]?.name}}</span></div></td>
             <td v-if="isLocal"><div class="ract">
               <button class="btn btn-s btn-sm" @click="openEdit(d)">編輯</button>
@@ -296,8 +296,7 @@ tbody tr:hover .ract{opacity:1}
           <div class="fgrp ff">
             <label class="flb">支援作業系統 <span class="req">*</span></label>
             <div class="cbg">
-              <label class="cbl"><input type="checkbox" value="windows-10" v-model="fm.supportedOS"> Windows 10</label>
-              <label class="cbl"><input type="checkbox" value="windows-11" v-model="fm.supportedOS"> Windows 11</label>
+              <label class="cbl"><input type="checkbox" :checked="fm.supportedOS.some(o=>o.startsWith('windows'))" @change="toggleWin"> Windows</label>
               <label class="cbl"><input type="checkbox" value="macos" v-model="fm.supportedOS"> macOS</label>
             </div>
           </div>
@@ -492,7 +491,7 @@ const SRS = {monitor:['SW','PD','PV'],projector:['W','HT'],'digital-signage':['S
 const CSLL = {sw:'SW 全套',pd:'PD 全套',pv:'PV 全套',pj:'Projector',ds:'Digital Signage'};
 const UCL = {'always-on':'Always ON','on-off':'ON / OFF','on-bri-off':'ON / Bri / OFF','not-supported':'不支援','no-uc':'—'};
 const UCK = {'always-on':'don','on-off':'dof','on-bri-off':'dof','not-supported':'dnv','no-uc':'dno'};
-const OSL = {'windows-10':'Win 10','windows-11':'Win 11','macos':'macOS'};
+const OSL = {'windows':'Windows','windows-10':'Windows','windows-11':'Windows','macos':'macOS'};
 const DTL = {'monitor':'Monitor','projector':'Projector','digital-signage':'Signage'};
 const BRL = {'x-rite':'X-Rite','datacolor':'Datacolor','benq':'BenQ','konica-minolta':'Konica Minolta'};
 
@@ -525,7 +524,7 @@ createApp({
       let r=devices.value;
       if(f.dt)  r=r.filter(d=>d.deviceType===f.dt);
       if(f.sr)  r=r.filter(d=>d.series===f.sr);
-      if(f.os)  r=r.filter(d=>d.supportedOS.includes(f.os));
+      if(f.os)  r=r.filter(d=>f.os==='windows'?d.supportedOS.some(o=>o.startsWith('windows')):d.supportedOS.includes(f.os));
       if(f.br)  r=r.filter(d=>d.supportedCalibratorIds.some(id=>CM[id]?.brand===f.br));
       if(f.cal) r=r.filter(d=>d.supportedCalibratorIds.includes(f.cal));
       return r;
@@ -535,7 +534,7 @@ createApp({
       const ids=new Set(result.value.flatMap(d=>d.supportedCalibratorIds));
       return CALS.filter(c=>ids.has(c.id)&&c.brand===f.br);
     });
-    function osOk(o){let r=devices.value;if(f.dt)r=r.filter(d=>d.deviceType===f.dt);if(f.sr)r=r.filter(d=>d.series===f.sr);return r.some(d=>d.supportedOS.includes(o));}
+    function osOk(o){let r=devices.value;if(f.dt)r=r.filter(d=>d.deviceType===f.dt);if(f.sr)r=r.filter(d=>d.series===f.sr);return o==='windows'?r.some(d=>d.supportedOS.some(v=>v.startsWith('windows'))):r.some(d=>d.supportedOS.includes(o));}
     function brandOk(b){let r=devices.value;if(f.dt)r=r.filter(d=>d.deviceType===f.dt);if(f.sr)r=r.filter(d=>d.series===f.sr);if(f.os)r=r.filter(d=>d.supportedOS.includes(f.os));return r.some(d=>d.supportedCalibratorIds.some(id=>CM[id]?.brand===b));}
     function setDt(v){f.dt=f.dt===v?null:v;f.sr=null;}
     function setSr(v){f.sr=f.sr===v?null:v;}
@@ -613,7 +612,7 @@ createApp({
         '色域':d.gamut,
         '面板':d.panel,
         'UC 狀態':({'always-on':'Always ON','on-off':'ON / OFF','on-bri-off':'ON / Bri / OFF','not-supported':'不支援','no-uc':'—'})[d.ucStatus]||d.ucStatus,
-        '作業系統':d.supportedOS.map(o=>({'windows-10':'Win 10','windows-11':'Win 11','macos':'macOS'})[o]||o).join(', '),
+        '作業系統':osDisp(d.supportedOS).join(', '),
         '支援 Calibrator':d.supportedCalibratorIds.map(id=>CM[id]?.name||id).join(', '),
         'EOL':d.isEOL?'是':'',
         '待適配':d.isPending?'是':'',
@@ -629,6 +628,8 @@ createApp({
     function ucL(s){return UCL[s]??s;}
     function dotC(s){return UCK[s]??'dno';}
     function osL(o){return OSL[o]??o;}
+    function osDisp(os){const r=[];if(os.some(o=>o.startsWith('windows')))r.push('Windows');if(os.includes('macos'))r.push('macOS');return r;}
+    function toggleWin(){const has=fm.supportedOS.some(o=>o.startsWith('windows'));fm.supportedOS=has?fm.supportedOS.filter(o=>!o.startsWith('windows')):[...fm.supportedOS.filter(o=>!o.startsWith('windows')),'windows-10','windows-11'];}
     function dtL(d){return DTL[d]??d;}
     function brL(b){return BRL[b]??b;}
     function calName(id){return CM[id]?.name??id;}
@@ -645,9 +646,9 @@ createApp({
       showExp,openExport,doExport,
       CM,CAL,CALS,
       dtypes:[{v:'monitor',l:'Monitor'},{v:'projector',l:'Projector'},{v:'digital-signage',l:'Signage'}],
-      osOpts:[{v:'windows-10',l:'Windows 10'},{v:'windows-11',l:'Windows 11'},{v:'macos',l:'macOS'}],
+      osOpts:[{v:'windows',l:'Windows'},{v:'macos',l:'macOS'}],
       brandOpts:[{v:'x-rite',l:'X-Rite'},{v:'datacolor',l:'Datacolor'},{v:'benq',l:'BenQ'},{v:'konica-minolta',l:'Konica Minolta'}],
-      ucL,dotC,osL,dtL,brL,calName,cpC,calSetL,
+      ucL,dotC,osL,osDisp,toggleWin,dtL,brL,calName,cpC,calSetL,
     };
   }
 }).mount('#app');
