@@ -615,6 +615,7 @@ createApp({
         '作業系統':osDisp(d.supportedOS).join(', '),
         '支援 Calibrator':d.supportedCalibratorIds.map(id=>CM[id]?.name||id).join(', '),
         'EOL':d.isEOL?'是':'',
+        '最終支援版本':d.isEOL&&d.eolVersion?d.eolVersion:'',
         '待適配':d.isPending?'是':'',
       }));
       const ws=XLSX.utils.json_to_sheet(rows);
