@@ -206,7 +206,7 @@ tbody tr:hover .ract{opacity:1}
             <td>
               <span class="mn">{{d.name}}</span>
               <span v-if="d._new" class="nb">新增</span>
-              <span v-if="d.isEOL" class="eb">EOL</span>
+              <span v-if="d.isEOL" class="eb">EOL</span><span v-if="d.isEOL&&d.eolVersion" style="font-size:11px;color:#9ca3af;margin-left:4px">{{d.eolVersion}}</span>
               <span v-if="d.isPending" class="pb">待適配</span>
             </td>
             <td><span class="st">{{d.series}}</span></td>
@@ -289,7 +289,7 @@ tbody tr:hover .ract{opacity:1}
             </div>
           </div>
           <div class="fgrp ff" v-if="fm.isEOL">
-            <label class="flb">EOL 停止支援版本</label>
+            <label class="flb">最終支援的版本</label>
             <input class="fi" v-model="fm.eolVersion" placeholder="e.g. V.2.5.1.0" style="max-width:240px">
           </div>
           <hr class="fdiv">
