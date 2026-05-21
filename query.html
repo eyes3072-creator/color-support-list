@@ -585,14 +585,18 @@ createApp({
       pubMsg.value='';
       const devs=devices.value.map(d=>{const o={...d};delete o._new;return o;});
       try{
-        const res=await fetch('http://localhost:9876',{
+        const res=await fetch('http://127.0.0.1:9876',{
           method:'POST',
           headers:{'Content-Type':'text/plain'},
           body:JSON.stringify({devices:devs})
         });
         const data=await res.json();
-        if(data.success){pubStatus.value='done';pubMsg.value=`已發布 ${data.count} 款設備`;}
-        else{pubStatus.value='error';pubMsg.value=data.error||'未知錯誤';}
+        if(data.success){
+          pubStatus.value='done';pubMsg.value=`已發布 ${data.count} 款設備`;
+          devices.value=devs;
+          hasChanges.value=false;
+          localStorage.setItem(SMKEY,JSON.stringify(devs));
+        }else{pubStatus.value='error';pubMsg.value=data.error||'未知錯誤';}
       }catch(e){
         pubStatus.value='error';
         pubMsg.value='無法連線到發布服務（請先開啟一個 Terminal 視窗）';
